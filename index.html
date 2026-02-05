@@ -2,26 +2,55 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>带记忆的午餐决定器</title>
+    <title>带删除功能的午餐决定器</title>
     <style>
         body { font-family: 'Microsoft YaHei', sans-serif; text-align: center; padding-top: 50px; background-color: #f7f7f7; }
-        .container { background: white; width: 300px; margin: 0 auto; padding: 20px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        input { padding: 8px; width: 150px; border: 1px solid #ddd; border-radius: 4px; }
-        button { padding: 8px 15px; cursor: pointer; border-radius: 4px; border: none; transition: 0.3s; }
-        #add-btn { background-color: #4CAF50; color: white; }
-        #draw-btn { background-color: #ff9800; color: white; width: 100%; font-size: 1.2rem; margin-top: 20px; }
-        #result { font-size: 1.5rem; color: #e91e63; font-weight: bold; margin-top: 20px; min-height: 40px; }
-        ul { text-align: left; margin-top: 20px; color: #666; }
-        .clear-btn { background-color: #f44336; color: white; margin-top: 10px; font-size: 0.8rem; }
+        .container { background: white; width: 320px; margin: 0 auto; padding: 20px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        
+        /* 输入区域样式 */
+        .input-group { margin-bottom: 20px; }
+        input { padding: 8px; width: 160px; border: 1px solid #ddd; border-radius: 4px; }
+        #add-btn { background-color: #4CAF50; color: white; border: none; padding: 8px 15px; cursor: pointer; border-radius: 4px; }
+        
+        /* 列表样式：使用 flex 布局让文字和删除按钮分居两侧 */
+        ul { text-align: left; padding: 0; list-style: none; margin-top: 20px; }
+        li { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding: 8px 10px; 
+            border-bottom: 1px solid #eee; 
+            background: #fff;
+        }
+        li:hover { background-color: #fafafa; }
+
+        /* --- 重点：删除按钮样式 --- */
+        .del-item-btn { 
+            background-color: #ff4d4f; 
+            color: white; 
+            border: none; 
+            padding: 2px 8px; 
+            border-radius: 4px; 
+            font-size: 12px; 
+            cursor: pointer; 
+        }
+        .del-item-btn:hover { background-color: #d9363e; }
+
+        /* 结果和抽签按钮 */
+        #result { font-size: 1.4rem; color: #e91e63; font-weight: bold; margin: 25px 0; min-height: 40px; }
+        #draw-btn { background-color: #ff9800; color: white; width: 100%; font-size: 1.2rem; border: none; padding: 12px; border-radius: 8px; cursor: pointer; }
+        .clear-btn { background-color: transparent; color: #999; border: none; margin-top: 15px; cursor: pointer; font-size: 12px; text-decoration: underline; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>我的第一个线上产品！</h2>
+    <h2>今天中午吃什么？</h2>
     
-    <input type="text" id="food-input" placeholder="输入美食名字">
-    <button id="add-btn">添加</button>
+    <div class="input-group">
+        <input type="text" id="food-input" placeholder="输入美食名字">
+        <button id="add-btn">添加</button>
+    </div>
 
     <ul id="food-list"></ul>
 
@@ -29,11 +58,10 @@
 
     <button id="draw-btn">开始抽签</button>
     
-    <button class="clear-btn" id="clear-all">清空所有记录</button>
+    <button class="clear-btn" id="clear-all">清空所有</button>
 </div>
 
 <script>
-    // --- 1. 初始化数据 (读数据) ---
     let foods = [];
 
     const foodInput = document.getElementById('food-input');
@@ -43,59 +71,86 @@
     const resultDisplay = document.getElementById('result');
     const clearBtn = document.getElementById('clear-all');
 
-    // 页面加载时执行的逻辑
+    // 页面加载逻辑
     window.onload = function() {
         const localData = localStorage.getItem('myFoods');
         if (localData) {
-            // 如果冰箱里有东西，就拿出来用 JSON.parse 从“线”还原回“箱子”（数组）
             foods = JSON.parse(localData);
-            // 调用下面定义的渲染函数，把读出来的数组显示在页面上
             renderList();
         }
     };
 
-    // --- 2. 渲染列表的通用函数 ---
-    // 为了代码不重复，我们把“更新页面列表”的逻辑抽出来
+    // 保存数据到 localStorage 的公用函数
+    function saveToLocal() {
+        localStorage.setItem('myFoods', JSON.stringify(foods));
+    }
+
+    // --- 核心修改：重新渲染列表函数 ---
     function renderList() {
-        foodList.innerHTML = ""; // 先清空当前的列表界面
-        foods.forEach(function(item) {
+        foodList.innerHTML = ""; // 先清空旧列表内容
+        
+        // 遍历数组，生成每一行内容
+        foods.forEach(function(item, index) {
             const li = document.createElement('li');
-            li.textContent = item;
-            foodList.appendChild(li);
+            
+            // 1. 创建文字显示区域
+            const span = document.createElement('span');
+            span.textContent = item;
+            
+            // 2. 创建删除按钮
+            const delBtn = document.createElement('button');
+            delBtn.textContent = "删除";
+            delBtn.className = "del-item-btn"; // 应用红色按钮样式
+            
+            // --- 重点：【删除点击逻辑】 ---
+            delBtn.onclick = function() {
+                // 弹出确认框（可选）
+                if (confirm(`确定要把“${item}”踢出菜单吗？`)) {
+                    // a. 从数组中移除：使用 splice(开始位置, 删除个数)
+                    foods.splice(index, 1);
+                    
+                    // b. 同步到“冰箱” (localStorage)
+                    saveToLocal();
+                    
+                    // c. 重新渲染页面，看到最新状态
+                    renderList();
+                }
+            };
+            // ---------------------------
+
+            li.appendChild(span);   // 把文字塞进 li
+            li.appendChild(delBtn); // 把删除按钮塞进 li
+            foodList.appendChild(li); // 把 li 塞进 ul
         });
     }
 
-    // --- 3. 添加逻辑 (存数据) ---
+    // 添加逻辑
     addBtn.onclick = function() {
         const foodName = foodInput.value.trim();
         if (foodName === "") return;
 
-        foods.push(foodName); // 更新数组
-        
-        // 【关键改动】立刻存入本地存储。使用 JSON.stringify 把数组转成字符串
-        localStorage.setItem('myFoods', JSON.stringify(foods));
-
-        renderList();       // 刷新页面显示
+        foods.push(foodName);
+        saveToLocal(); // 保存
+        renderList();  // 渲染
         foodInput.value = "";
         foodInput.focus();
     };
 
-    // --- 4. 抽签逻辑 (保持不变) ---
+    // 抽签逻辑
     drawBtn.onclick = function() {
         if (foods.length === 0) {
-            resultDisplay.textContent = "先加点好吃的再抽吧！";
+            resultDisplay.textContent = "列表空空如也~";
             return;
         }
         const randomIndex = Math.floor(Math.random() * foods.length);
-        const luckyFood = foods[randomIndex];
-        resultDisplay.textContent = "今天就吃：" + luckyFood + "！";
+        resultDisplay.textContent = "今天就吃：" + foods[randomIndex] + "！";
     };
 
-    // --- 5. 清空逻辑 (可选) ---
+    // 全部清空逻辑
     clearBtn.onclick = function() {
-        if(confirm("确定要删除所有食物吗？")) {
+        if(confirm("确定要全部清空吗？")) {
             foods = [];
-            localStorage.removeItem('myFoods'); // 从冰箱里彻底拿走
+            saveToLocal();
             renderList();
             resultDisplay.textContent = "准备好开饭了吗？";
         }
@@ -103,5 +158,4 @@
 </script>
 
 </body>
-
 </html>
