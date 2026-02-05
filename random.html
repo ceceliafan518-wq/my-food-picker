@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>带记忆的午餐决定器</title>
+    <style>
+        body { font-family: 'Microsoft YaHei', sans-serif; text-align: center; padding-top: 50px; background-color: #f7f7f7; }
+        .container { background: white; width: 300px; margin: 0 auto; padding: 20px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        input { padding: 8px; width: 150px; border: 1px solid #ddd; border-radius: 4px; }
+        button { padding: 8px 15px; cursor: pointer; border-radius: 4px; border: none; transition: 0.3s; }
+        #add-btn { background-color: #4CAF50; color: white; }
+        #draw-btn { background-color: #ff9800; color: white; width: 100%; font-size: 1.2rem; margin-top: 20px; }
+        #result { font-size: 1.5rem; color: #e91e63; font-weight: bold; margin-top: 20px; min-height: 40px; }
+        ul { text-align: left; margin-top: 20px; color: #666; }
+        .clear-btn { background-color: #f44336; color: white; margin-top: 10px; font-size: 0.8rem; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>今天中午吃什么？</h2>
+    
+    <input type="text" id="food-input" placeholder="输入美食名字">
+    <button id="add-btn">添加</button>
+
+    <ul id="food-list"></ul>
+
+    <div id="result">准备好开饭了吗？</div>
+
+    <button id="draw-btn">开始抽签</button>
+    
+    <button class="clear-btn" id="clear-all">清空所有记录</button>
+</div>
+
+<script>
+    // --- 1. 初始化数据 (读数据) ---
+    let foods = [];
+
+    const foodInput = document.getElementById('food-input');
+    const addBtn = document.getElementById('add-btn');
+    const foodList = document.getElementById('food-list');
+    const drawBtn = document.getElementById('draw-btn');
+    const resultDisplay = document.getElementById('result');
+    const clearBtn = document.getElementById('clear-all');
+
+    // 页面加载时执行的逻辑
+    window.onload = function() {
+        const localData = localStorage.getItem('myFoods');
+        if (localData) {
+            // 如果冰箱里有东西，就拿出来用 JSON.parse 从“线”还原回“箱子”（数组）
+            foods = JSON.parse(localData);
+            // 调用下面定义的渲染函数，把读出来的数组显示在页面上
+            renderList();
+        }
+    };
+
+    // --- 2. 渲染列表的通用函数 ---
+    // 为了代码不重复，我们把“更新页面列表”的逻辑抽出来
+    function renderList() {
+        foodList.innerHTML = ""; // 先清空当前的列表界面
+        foods.forEach(function(item) {
+            const li = document.createElement('li');
+            li.textContent = item;
+            foodList.appendChild(li);
+        });
+    }
+
+    // --- 3. 添加逻辑 (存数据) ---
+    addBtn.onclick = function() {
+        const foodName = foodInput.value.trim();
+        if (foodName === "") return;
+
+        foods.push(foodName); // 更新数组
+        
+        // 【关键改动】立刻存入本地存储。使用 JSON.stringify 把数组转成字符串
+        localStorage.setItem('myFoods', JSON.stringify(foods));
+
+        renderList();       // 刷新页面显示
+        foodInput.value = "";
+        foodInput.focus();
+    };
+
+    // --- 4. 抽签逻辑 (保持不变) ---
+    drawBtn.onclick = function() {
+        if (foods.length === 0) {
+            resultDisplay.textContent = "先加点好吃的再抽吧！";
+            return;
+        }
+        const randomIndex = Math.floor(Math.random() * foods.length);
+        const luckyFood = foods[randomIndex];
+        resultDisplay.textContent = "今天就吃：" + luckyFood + "！";
+    };
+
+    // --- 5. 清空逻辑 (可选) ---
+    clearBtn.onclick = function() {
+        if(confirm("确定要删除所有食物吗？")) {
+            foods = [];
+            localStorage.removeItem('myFoods'); // 从冰箱里彻底拿走
+            renderList();
+            resultDisplay.textContent = "准备好开饭了吗？";
+        }
+    };
+</script>
+
+</body>
+</html>
