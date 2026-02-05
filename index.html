@@ -2,160 +2,169 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>带删除功能的午餐决定器</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>今天吃什么 - 高级版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { font-family: 'Microsoft YaHei', sans-serif; text-align: center; padding-top: 50px; background-color: #f7f7f7; }
-        .container { background: white; width: 320px; margin: 0 auto; padding: 20px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        
-        /* 输入区域样式 */
-        .input-group { margin-bottom: 20px; }
-        input { padding: 8px; width: 160px; border: 1px solid #ddd; border-radius: 4px; }
-        #add-btn { background-color: #4CAF50; color: white; border: none; padding: 8px 15px; cursor: pointer; border-radius: 4px; }
-        
-        /* 列表样式：使用 flex 布局让文字和删除按钮分居两侧 */
-        ul { text-align: left; padding: 0; list-style: none; margin-top: 20px; }
-        li { 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            padding: 8px 10px; 
-            border-bottom: 1px solid #eee; 
-            background: #fff;
+        /* 自定义部分难以通过类名实现的动画 */
+        @keyframes bounce-subtle {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
         }
-        li:hover { background-color: #fafafa; }
-
-        /* --- 重点：删除按钮样式 --- */
-        .del-item-btn { 
-            background-color: #ff4d4f; 
-            color: white; 
-            border: none; 
-            padding: 2px 8px; 
-            border-radius: 4px; 
-            font-size: 12px; 
-            cursor: pointer; 
-        }
-        .del-item-btn:hover { background-color: #d9363e; }
-
-        /* 结果和抽签按钮 */
-        #result { font-size: 1.4rem; color: #e91e63; font-weight: bold; margin: 25px 0; min-height: 40px; }
-        #draw-btn { background-color: #ff9800; color: white; width: 100%; font-size: 1.2rem; border: none; padding: 12px; border-radius: 8px; cursor: pointer; }
-        .clear-btn { background-color: transparent; color: #999; border: none; margin-top: 15px; cursor: pointer; font-size: 12px; text-decoration: underline; }
+        .animate-rolling { animation: bounce-subtle 0.2s infinite; }
     </style>
 </head>
-<body>
+<body class="bg-gray-50 min-h-screen flex items-center justify-center p-4">
 
-<div class="container">
-    <h2>今天中午吃什么？</h2>
-    
-    <div class="input-group">
-        <input type="text" id="food-input" placeholder="输入美食名字">
-        <button id="add-btn">添加</button>
+    <div class="bg-white w-full max-w-md rounded-[2rem] shadow-2xl p-8 transition-all">
+        
+        <header class="text-center mb-8">
+            <h1 class="text-3xl font-black text-gray-800 tracking-tight">
+                今天中午<span class="text-indigo-600">吃什么？</span>
+            </h1>
+            <p class="text-gray-400 text-sm mt-2">解决人生第一大难题</p>
+        </header>
+
+        <div class="flex gap-2 mb-8">
+            <input type="text" id="food-input" 
+                class="flex-1 bg-gray-100 border-none rounded-2xl px-5 py-3 text-gray-700 focus:ring-2 focus:ring-indigo-500 transition-all outline-none" 
+                placeholder="输入美食，如：火锅">
+            <button id="add-btn" 
+                class="bg-indigo-600 text-white px-6 py-3 rounded-2xl font-bold hover:bg-indigo-700 hover:scale-105 active:scale-95 transition-all shadow-md">
+                添加
+            </button>
+        </div>
+
+        <div class="bg-gray-50 rounded-3xl p-6 text-center border-2 border-dashed border-gray-200 mb-8 relative overflow-hidden">
+            <div id="result" class="text-xl font-bold text-gray-800 transition-all duration-300">
+                准备好开饭了吗？
+            </div>
+        </div>
+
+        <button id="draw-btn" 
+            class="w-full bg-gradient-to-r from-indigo-600 to-violet-600 text-white text-lg font-bold py-4 rounded-2xl shadow-xl hover:scale-[1.02] active:scale-95 transition-all mb-6 disabled:opacity-50">
+            开始随机抽签
+        </button>
+
+        <div class="mt-4">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">我的菜单库</h3>
+                <button id="clear-all" class="text-xs text-gray-400 hover:text-red-500 transition-colors">全部清空</button>
+            </div>
+            <div id="food-tags" class="flex flex-wrap gap-2">
+                </div>
+        </div>
     </div>
 
-    <ul id="food-list"></ul>
+    <script>
+        let foods = [];
+        const foodInput = document.getElementById('food-input');
+        const addBtn = document.getElementById('add-btn');
+        const foodTags = document.getElementById('food-tags');
+        const drawBtn = document.getElementById('draw-btn');
+        const resultDisplay = document.getElementById('result');
+        const clearBtn = document.getElementById('clear-all');
 
-    <div id="result">准备好开饭了吗？</div>
+        // 1. 初始化读取
+        window.onload = () => {
+            const data = localStorage.getItem('ultraFoods');
+            if (data) {
+                foods = JSON.parse(data);
+                renderTags();
+            }
+        };
 
-    <button id="draw-btn">开始抽签</button>
-    
-    <button class="clear-btn" id="clear-all">清空所有</button>
-</div>
-
-<script>
-    let foods = [];
-
-    const foodInput = document.getElementById('food-input');
-    const addBtn = document.getElementById('add-btn');
-    const foodList = document.getElementById('food-list');
-    const drawBtn = document.getElementById('draw-btn');
-    const resultDisplay = document.getElementById('result');
-    const clearBtn = document.getElementById('clear-all');
-
-    // 页面加载逻辑
-    window.onload = function() {
-        const localData = localStorage.getItem('myFoods');
-        if (localData) {
-            foods = JSON.parse(localData);
-            renderList();
+        // 2. 渲染标签云 (Modern Tag UI)
+        function renderTags() {
+            foodTags.innerHTML = "";
+            foods.forEach((food, index) => {
+                const tag = document.createElement('div');
+                // Tailwind 类：浅色背景、圆角、悬停显示删除
+                tag.className = `group flex items-center bg-indigo-50 text-indigo-700 px-4 py-2 rounded-full text-sm font-medium transition-all hover:bg-indigo-100 animate-in fade-in duration-300`;
+                
+                tag.innerHTML = `
+                    <span>${food}</span>
+                    <button onclick="deleteFood(${index})" class="ml-2 text-indigo-300 hover:text-red-500 font-bold transition-colors">
+                        ✕
+                    </button>
+                `;
+                foodTags.appendChild(tag);
+            });
         }
-    };
 
-    // 保存数据到 localStorage 的公用函数
-    function saveToLocal() {
-        localStorage.setItem('myFoods', JSON.stringify(foods));
-    }
+        // 3. 添加逻辑
+        addBtn.onclick = () => {
+            const val = foodInput.value.trim();
+            if (!val) return;
+            foods.push(val);
+            save();
+            renderTags();
+            foodInput.value = "";
+        };
 
-    // --- 核心修改：重新渲染列表函数 ---
-    function renderList() {
-        foodList.innerHTML = ""; // 先清空旧列表内容
-        
-        // 遍历数组，生成每一行内容
-        foods.forEach(function(item, index) {
-            const li = document.createElement('li');
-            
-            // 1. 创建文字显示区域
-            const span = document.createElement('span');
-            span.textContent = item;
-            
-            // 2. 创建删除按钮
-            const delBtn = document.createElement('button');
-            delBtn.textContent = "删除";
-            delBtn.className = "del-item-btn"; // 应用红色按钮样式
-            
-            // --- 重点：【删除点击逻辑】 ---
-            delBtn.onclick = function() {
-                // 弹出确认框（可选）
-                if (confirm(`确定要把“${item}”踢出菜单吗？`)) {
-                    // a. 从数组中移除：使用 splice(开始位置, 删除个数)
-                    foods.splice(index, 1);
+        // 4. 删除逻辑
+        window.deleteFood = (index) => {
+            foods.splice(index, 1);
+            save();
+            renderTags();
+        };
+
+        // 5. 重点：有仪式感的抽签逻辑
+        drawBtn.onclick = () => {
+            if (foods.length < 1) {
+                resultDisplay.innerText = "先加点好吃的吧！";
+                return;
+            }
+
+            // 禁用按钮防止重复点击
+            drawBtn.disabled = true;
+            let counter = 0;
+            const maxCycles = 15; // 滚动次数
+
+            // 视觉滚动效果
+            const timer = setInterval(() => {
+                const tempIndex = Math.floor(Math.random() * foods.length);
+                resultDisplay.innerText = foods[tempIndex];
+                resultDisplay.classList.add('animate-rolling', 'text-indigo-600');
+                
+                counter++;
+                if (counter >= maxCycles) {
+                    clearInterval(timer);
+                    // 最终结果
+                    const finalIndex = Math.floor(Math.random() * foods.length);
+                    resultDisplay.innerText = "今天就吃：" + foods[finalIndex] + "！";
+                    resultDisplay.classList.remove('animate-rolling');
+                    resultDisplay.classList.replace('text-indigo-600', 'text-gray-800');
                     
-                    // b. 同步到“冰箱” (localStorage)
-                    saveToLocal();
-                    
-                    // c. 重新渲染页面，看到最新状态
-                    renderList();
+                    // 结果跳动动画
+                    resultDisplay.style.transform = 'scale(1.2)';
+                    setTimeout(() => {
+                        resultDisplay.style.transform = 'scale(1)';
+                        drawBtn.disabled = false;
+                    }, 200);
                 }
-            };
-            // ---------------------------
+            }, 80); // 滚动速度 80ms
+        };
 
-            li.appendChild(span);   // 把文字塞进 li
-            li.appendChild(delBtn); // 把删除按钮塞进 li
-            foodList.appendChild(li); // 把 li 塞进 ul
+        // 数据持久化
+        function save() {
+            localStorage.setItem('ultraFoods', JSON.stringify(foods));
+        }
+
+        // 清空
+        clearBtn.onclick = () => {
+            if (confirm('确定清空吗？')) {
+                foods = [];
+                save();
+                renderTags();
+                resultDisplay.innerText = "准备好开饭了吗？";
+            }
+        };
+
+        // 回车添加支持
+        foodInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addBtn.click();
         });
-    }
-
-    // 添加逻辑
-    addBtn.onclick = function() {
-        const foodName = foodInput.value.trim();
-        if (foodName === "") return;
-
-        foods.push(foodName);
-        saveToLocal(); // 保存
-        renderList();  // 渲染
-        foodInput.value = "";
-        foodInput.focus();
-    };
-
-    // 抽签逻辑
-    drawBtn.onclick = function() {
-        if (foods.length === 0) {
-            resultDisplay.textContent = "列表空空如也~";
-            return;
-        }
-        const randomIndex = Math.floor(Math.random() * foods.length);
-        resultDisplay.textContent = "今天就吃：" + foods[randomIndex] + "！";
-    };
-
-    // 全部清空逻辑
-    clearBtn.onclick = function() {
-        if(confirm("确定要全部清空吗？")) {
-            foods = [];
-            saveToLocal();
-            renderList();
-            resultDisplay.textContent = "准备好开饭了吗？";
-        }
-    };
-</script>
-
+    </script>
 </body>
 </html>
